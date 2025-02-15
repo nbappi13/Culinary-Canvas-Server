@@ -43,7 +43,7 @@ async function getFoodById(req, res) {
 
 async function purchaseFood(req, res) {
   try {
-    const { foodId, foodName, price, quantity, buyerName, buyerEmail, buyingDate } = req.body;
+    const { foodId, foodName, price, quantity, buyerName, buyerEmail } = req.body;
     const database = client.db('food_info');
     const purchases = database.collection('purchases');
     
@@ -54,15 +54,18 @@ async function purchaseFood(req, res) {
       quantity,
       buyerName,
       buyerEmail,
-      buyingDate,
+      buyingDate: new Date().toISOString(), 
     };
 
     await purchases.insertOne(newPurchase);
 
-    
+
     const updateResult = await database.collection('food').updateOne(
       { _id: new ObjectId(foodId) },
-      { $inc: { quantity: -quantity, purchaseCount: quantity } }
+      { 
+        $inc: { quantity: -quantity, purchaseCount: quantity },
+        $push: { orders: newPurchase } 
+      }
     );
 
     if (updateResult.modifiedCount === 0) {
