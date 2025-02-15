@@ -43,23 +43,35 @@ async function getFoodById(req, res) {
 
 async function purchaseFood(req, res) {
   try {
-    const { id } = req.params;
+    const { foodId, foodName, price, quantity, buyerName, buyerEmail, buyingDate } = req.body;
     const database = client.db('food_info');
-    const foods = database.collection('food');
+    const purchases = database.collection('purchases');
     
-    const result = await foods.updateOne(
-      { _id: new ObjectId(id) },
-      { $inc: { purchaseCount: 1 } }
+    const newPurchase = {
+      foodId: new ObjectId(foodId),
+      foodName,
+      price,
+      quantity,
+      buyerName,
+      buyerEmail,
+      buyingDate,
+    };
+
+    await purchases.insertOne(newPurchase);
+
+    
+    const updateResult = await database.collection('food').updateOne(
+      { _id: new ObjectId(foodId) },
+      { $inc: { quantity: -quantity, purchaseCount: quantity } }
     );
-    
-    if (result.modifiedCount === 0) {
+
+    if (updateResult.modifiedCount === 0) {
       return res.status(404).json({ message: 'Food not found' });
     }
 
-    const updatedFood = await foods.findOne({ _id: new ObjectId(id) });
-    res.status(200).json(updatedFood);
+    res.status(201).json({ message: 'Purchase successful' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update purchase count', error });
+    res.status(500).json({ message: 'Failed to process purchase', error });
   }
 }
 
