@@ -25,6 +25,9 @@ async function getAllFoods(req, res) {
 async function getFoodById(req, res) {
   try {
     const { id } = req.params;
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid food ID' });
+    }
     const database = client.db('food_info');
     const foods = database.collection('food');
     const food = await foods.findOne({ _id: new ObjectId(id) });
@@ -40,29 +43,47 @@ async function getFoodById(req, res) {
 
 async function purchaseFood(req, res) {
   try {
+    const { id } = req.params;
     const { foodId, foodName, price, quantity, buyerName, buyerEmail } = req.body;
+
+    if (!ObjectId.isValid(id) || !ObjectId.isValid(foodId)) {
+      return res.status(400).json({ message: 'Invalid food ID format' });
+    }
+
+    if (!foodId || !foodName || !price || !quantity || !buyerName || !buyerEmail) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
     const database = client.db('food_info');
     const purchases = database.collection('purchases');
     const newPurchase = {
       foodId: new ObjectId(foodId),
       foodName,
       price: parseFloat(price),
-      quantity,
+      quantity: parseInt(quantity, 10),
       buyerName,
       buyerEmail,
       buyingDate: new Date().toISOString(),
     };
+
+  
     await purchases.insertOne(newPurchase);
+
+
     const updateResult = await database.collection('food').updateOne(
-      { _id: new ObjectId(foodId) },
+      { _id: new ObjectId(id) },
       {
         $inc: { quantity: -quantity, purchaseCount: quantity },
         $push: { orders: newPurchase },
       }
     );
+
     if (updateResult.modifiedCount === 0) {
       return res.status(404).json({ message: 'Food not found' });
     }
+
+    console.log(`Updated purchaseCount for foodId: ${foodId}`);
+
     res.status(201).json({ message: 'Purchase successful' });
   } catch (error) {
     console.error('Error processing purchase:', error.message);
@@ -74,7 +95,11 @@ async function getTopSellingFoods(req, res) {
   try {
     const database = client.db('food_info');
     const foods = database.collection('food');
+
     const topFoods = await foods.find().sort({ purchaseCount: -1 }).limit(6).toArray();
+
+    console.log('Top-selling foods:', topFoods);
+
     res.status(200).json(topFoods);
   } catch (error) {
     console.error('Error fetching top-selling foods:', error.message);
@@ -84,7 +109,7 @@ async function getTopSellingFoods(req, res) {
 
 async function getMyFoods(req, res) {
   try {
-    const email = req.user.email;
+    const email = req.headers.email;
     const database = client.db('food_info');
     const foods = database.collection('food');
     const userFoods = await foods.find({ 'addedBy.email': email }).toArray();
@@ -98,9 +123,9 @@ async function getMyFoods(req, res) {
 async function updateFood(req, res) {
   try {
     const { id } = req.params;
-    const email = req.user.email;
+    const email = req.headers.email;
 
-    if (!id || !ObjectId.isValid(id)) {
+    if (!ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'Invalid food ID' });
     }
 
@@ -111,8 +136,8 @@ async function updateFood(req, res) {
       quantity: parseInt(req.body.quantity, 10),
       price: parseFloat(req.body.price),
       description: {
-        shortDescription: req.body.description.shortDescription,
-        foodOrigin: req.body.description.foodOrigin,
+        shortDescription: req.body.description?.shortDescription || '',
+        foodOrigin: req.body.description?.foodOrigin || '',
       },
     };
 
@@ -120,13 +145,13 @@ async function updateFood(req, res) {
     const foods = database.collection('food');
 
     const updatedFood = await foods.findOneAndUpdate(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id), 'addedBy.email': email },
       { $set: updateData },
       { returnDocument: 'after' }
     );
 
     if (!updatedFood.value) {
-      return res.status(404).json({ message: 'Food not found' });
+      return res.status(404).json({ message: 'Food not found or you do not have permission to update this food' });
     }
 
     res.status(200).json(updatedFood.value);
