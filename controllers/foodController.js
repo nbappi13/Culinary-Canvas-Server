@@ -66,9 +66,7 @@ async function purchaseFood(req, res) {
       buyingDate: new Date().toISOString(),
     };
 
-  
     await purchases.insertOne(newPurchase);
-
 
     const updateResult = await database.collection('food').updateOne(
       { _id: new ObjectId(id) },
@@ -194,6 +192,50 @@ async function addFood(req, res) {
   }
 }
 
+async function getMyOrders(req, res) {
+  try {
+    const email = req.headers.email;
+    const database = client.db('food_info');
+    const purchases = database.collection('purchases');
+    const userOrders = await purchases.aggregate([
+      { $match: { buyerEmail: email } },
+      {
+        $lookup: {
+          from: 'food',
+          localField: 'foodId',
+          foreignField: '_id',
+          as: 'foodDetails',
+        },
+      },
+      { $unwind: '$foodDetails' },
+    ]).toArray();
+    res.status(200).json(userOrders);
+  } catch (error) {
+    console.error('Error fetching user orders:', error.message);
+    res.status(500).json({ message: 'Failed to retrieve user orders', error });
+  }
+}
+
+async function deleteOrder(req, res) {
+  try {
+    const { id } = req.params;
+    const email = req.headers.email;
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+    const database = client.db('food_info');
+    const purchases = database.collection('purchases');
+    const deleteResult = await purchases.deleteOne({ _id: new ObjectId(id), buyerEmail: email });
+    if (deleteResult.deletedCount === 0) {
+      return res.status(404).json({ message: 'Order not found or you do not have permission to delete this order' });
+    }
+    res.status(200).json({ message: 'Order deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete order:', error.message);
+    res.status(500).json({ message: 'Failed to delete order', error });
+  }
+}
+
 module.exports = {
   getAllFoods,
   getFoodById,
@@ -202,4 +244,6 @@ module.exports = {
   getMyFoods,
   updateFood,
   addFood,
+  getMyOrders,
+  deleteOrder,
 };
