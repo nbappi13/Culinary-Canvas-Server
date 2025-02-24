@@ -1,12 +1,19 @@
-const authMiddleware = (req, res, next) => {
-  const { email } = req.headers;
+const jwt = require('jsonwebtoken');
 
-  if (!email) {
-    return res.status(401).send({ error: 'Access denied. No email provided.' });
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
 
-  req.user = { email }; 
-  next();
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(403).json({ error: 'Invalid token.' });
+  }
 };
 
 module.exports = authMiddleware;
