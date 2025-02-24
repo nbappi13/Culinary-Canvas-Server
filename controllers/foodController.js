@@ -3,10 +3,16 @@ const { ObjectId } = require("mongodb");
 
 async function getAllFoods(req, res) {
   try {
-    const { category, priceRange, page = 1, limit = 9 } = req.query;
+
+    const { category, priceRange, page = 1, limit = 9, name } = req.query;
     const database = client.db("food_info");
     const foods = database.collection("food");
     const filters = {};
+    
+  
+    if (name) {
+      filters.name = { $regex: name, $options: "i" }; 
+    }
     if (category) {
       filters.category = category;
     }
