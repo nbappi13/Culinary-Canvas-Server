@@ -13,12 +13,16 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://b10-a11-task.web.app/",
-      "https://b10-a11-task.firebaseapp.com", 
+      "https://b10-a11-task.web.app",
+      "https://b10-a11-task.firebaseapp.com",
+      "https://culinary-canvas-kitchen.netlify.app", 
     ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "email"],
     credentials: true,
   })
 );
+
 app.use(cookieParser());
 app.use(bodyParser.json());
 
@@ -28,7 +32,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });
 
-// Define the /all-foods endpoint
+
 app.get("/all-foods", async (req, res) => {
   try {
     const database = client.db("food_info");
