@@ -15,6 +15,7 @@ app.use(
       "http://localhost:5173",
       "https://b10-a11-task.web.app",
       "https://b10-a11-task.firebaseapp.com",
+      "https://culinary-canvas-kitchen.netlify.app/"
     ],
     credentials: true,
   })
